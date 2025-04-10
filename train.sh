@@ -31,29 +31,9 @@ group="test"
 
 python setupdata.py
 
-python transfed.py "$group" \
-    --name 'BCE+SSL+supcon' \
+python transfed_no_out.py \
     --lambda_sc 0.0001 \
-    --lambda_u 5 \
-    --start 0
-
-python transfed.py "$group" \
-    --name 'BCE only' \
-    --lambda_sc 0 \
-    --lambda_u 0 \
-    --start 0
-
-python transfed.py "$group" \
-    --name 'BCE+SSL' \
-    --lambda_sc 0 \
-    --lambda_u 2 \
-    --start 0
-
-python transfed.py "$group" \
-    --name 'BCE+supcon' \
-    --lambda_sc 0.0001 \
-    --lambda_u 0 \
-    --start 0
+    --lambda_u 5
 
 
 

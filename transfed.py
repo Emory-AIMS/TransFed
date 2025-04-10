@@ -776,26 +776,20 @@ def main():
     set_seed(88)
 
     parser = argparse.ArgumentParser(description='Training script with parameter tuning.')
-    parser.add_argument('group', type=str, help='Group name')
-    parser.add_argument('--name', type=str, required=True, help='job name')
     parser.add_argument('--lambda_sc', type=float, required=True, help='Value for lambda_sc, weight for SupCon loss')
     parser.add_argument('--lambda_u', type=float, required=True, help='Value for lambda_u, weight for ssl loss')
-    parser.add_argument('--start', type=int, required=True, help='Value for start')
     args = parser.parse_args()
 
-    group = args.group
     lambda_sc = args.lambda_sc
     lambda_u = args.lambda_u
-    start = args.start
-    name = args.name
-    
+    start = 0
 
-    print(f"Starting training with group={group}, lambda_sc={lambda_sc}, lambda_u={lambda_u}, start={start}")
+    
 
     purple_lr = 3e-5
     orange_lr = 5e-5
     patience = 5
-    epochs = 80
+    epochs = 40
     labeldp = False
 
 
@@ -816,8 +810,6 @@ def main():
     print("preparing data")
     dataa = pd.read_csv(filepath_or_buffer="dataa.csv")
     datab = pd.read_csv(filepath_or_buffer="datab_unlabeled.csv")
-    # atest = pd.read_csv(filepath_or_buffer="atest.csv")
-    # test = pd.read_csv(filepath_or_buffer="btest.csv")
     test = pd.read_csv(filepath_or_buffer="midwest_test.csv")
 
     # Load data and labels from the .npz file
