@@ -31,7 +31,7 @@ group="test"
 
 python setupdata.py
 
-python transfed_no_out.py \
+python transfed.py \
     --lambda_sc 0.0001 \
     --lambda_u 5
 
