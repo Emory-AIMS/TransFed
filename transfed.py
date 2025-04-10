@@ -2,8 +2,6 @@ import numpy as np
 import pandas as pd
 
 from sklearn.metrics import confusion_matrix
-
-import wandb
 import argparse
 
 import torch
@@ -273,13 +271,6 @@ def train_orange(model, optimizer, atrain_dataloader, epoch):
         print("      orange train prauc: ", prauc)
         print()
         
-        # Log to wandb
-        wandb.log({
-            'epoch': epoch,
-            'org/avg_loss': train_running_loss / len(atrain_dataloader),
-            'org/train_acc': accuracy,
-            'org/train_prauc': prauc
-        }, step=epoch)
     else:
         print("No data to compute metrics.")
     
@@ -458,18 +449,6 @@ def train_purple(model, optimizer, shared_loader, unlabeled_loader, epoch, lambd
         print("      train acc: ",  (correct_preds_count / total_count) * 100)
         print("      purple train prauc: ", prauc)
 
-        wandb.log({
-            'epoch': epoch,
-            'pp/avg_loss': avg_loss,
-            'pp/consistency_loss': cons_loss,
-            'pp/ssl_loss': ppssl_loss,
-            'pp/ssl_samples': nsamples,
-            'pp/train_acc': (correct_preds_count / total_count) * 100,
-            'pp/train_prauc': prauc,
-            'pp/ssl_acc': accuracy,
-            'pp/ssl_precision': precision,
-            'pp/ssl_recall': recall
-        }, step=epoch)
     else:
         print("No data to compute metrics.")
 
@@ -655,11 +634,6 @@ def train_supcons(model_purple, model_orange, optimizer_purple, optimizer_orange
     # Calculate average SSL loss per sample
     avg_ssl_loss = ssl_loss_sum / ssl_samples_count if ssl_samples_count > 0 else 0.0
 
-    # Log SSL metrics
-    wandb.log({
-        'ssl/samples': ssl_samples_count,
-        'ssl/avg_loss': avg_ssl_loss
-    }, step=epoch)
 
     return total_loss
 
@@ -708,15 +682,6 @@ def train(model_purple, model_orange, optimizer_purple, optimizer_orange, purple
         print(f"SupCon loss: {avg_supcons_loss:.4f}")
         print(f"Total loss: {total_loss:.4f}")
 
-        wandb.log(
-        {
-            'epoch': epoch,
-            'total_loss': total_loss,
-            'orange_loss': avg_orange_loss,
-            'purple_loss': avg_purple_loss,
-            'supcon_loss': avg_supcons_loss
-        }, step=epoch    
-        )
         
         # Evaluation on Purple Model
         test_running_loss = 0.0
@@ -758,13 +723,6 @@ def train(model_purple, model_orange, optimizer_purple, optimizer_orange, purple
             print("                                  purple test F-score: ", f1)
             print("                                  purple test prauc: ", prauc)
 
-            wandb.log({
-                'epoch': epoch,
-                'pp/test_loss': test_running_loss / len(test_dataloader),
-                'pp/test_acc': (correct_preds_count / total_count) * 100,
-                'pp/test_prauc': prauc,
-                'pp/test_f1': f1
-            }, step=epoch)
         else:
             print("Insufficient data to compute confusion matrix for Purple Model.")
 
@@ -810,13 +768,6 @@ def train(model_purple, model_orange, optimizer_purple, optimizer_orange, purple
             print("                                   orange test F-score: ", f1)
             print("                                   orange test prauc: ", prauc)
 
-            wandb.log({
-                'epoch': epoch,
-                'org/test_loss': test_running_loss / len(test_dataloader),
-                'org/test_acc': (correct_preds_count / total_count) * 100,
-                'org/test_prauc': prauc,
-                'org/test_f1':f1
-            }, step=epoch)
         else:
             print("Insufficient data to compute confusion matrix for Orange Model.")
 
@@ -891,12 +842,6 @@ def main():
     print("run ftl")
 
     
-
-
-
-    run2 = wandb.init(project="Helen-1209", name=name, group=group, config=config, job_type="BCE+supcons")
-    # print("BCE + alignment: shared_ratio = 0.25, 50 epochs, lambda_u = 0, lambda_al = 0.1, ssl not working as lambda_u = 0")
-    
     model_purple = MLP(l=len(bind)).to(DEVICE)
     print(btrain.shape[1]-1)
     optimizer_purple = torch.optim.Adam(params=model_purple.parameters(), lr=purple_lr)
@@ -917,8 +862,6 @@ def main():
     
     train(model_purple, model_orange, optimizer_purple, optimizer_orange, purple_scheduler, orange_scheduler, atrain_dataloader, btrain_dataloader, test_dataloader, aind, bind, pairs_labeled_dataloader, epochs, lambda_sc, lambda_u, labeldp, start)
     
-    print("-----------------------------------------------------------")
-    run2.finish()
 
 
 
