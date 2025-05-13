@@ -46,6 +46,10 @@ For a full training run example with recommended hyperparameters, see [`train.sh
 
 - PhysioNet Sepsis Prediction Challenge 2019
 
+For eICU Collaborative Research Database, we conducted some data pre-processing to create the 69 features (as detailed in the code and the paper). First, we take the last measurement on labs.csv, which records labs measurements, for each lab each "patientunitstayid", and then drop features with over 30% missing values. Then, we join the processed labs dataset on "patientunitstayid" with other datasets: patients.csv which takes patients' personal information, vitalperiodic.csv and vitalaperiodic.csv that take vital signs, apacheapsvar.csv that takes APACHE severity of illness measures, hospital.csv that records hospital information. Then, categorical features are on-hot encoded, and missing values are filled with the mean of each feature. After pre-processing, the final dataset contains 69 features, and the target feature is `unitdischargestatus', which is the discharge status of the patient from the ICU unit stay.
+
+For PhysioNet Sepsis Prediction Challenge 2019, we did similar pre-processing: for each feature, we take the last measurement and fill the missing value with the mean. 
+
 ## Results
 
 <img width="497" alt="Screenshot 2025-05-10 at 4 10 57 PM" src="https://github.com/user-attachments/assets/0143e38e-eb17-4c2d-a9e1-a0a5db86d8be" />
