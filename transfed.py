@@ -71,6 +71,7 @@ def prepare_eicu_data(dataa, datab, test):
 
     test = test[dataa.columns]
 
+    # Experiment to reduce domain A sample size
     # X_dataa, X_atest, y_dataa, y_atest = train_test_split(dataa.iloc[:, :-1], dataa["unitdischargestatus"], test_size=0.9, random_state=88) # using only 1-test_size of dataa
     # dataa = X_dataa
     # dataa['unitdischargestatus'] = y_dataa.astype('int')
@@ -215,20 +216,9 @@ class MLP(nn.Module):
         return hidden, out
     
 
-def compute_alignment(model_purple, model_orange, x_sim, lambda_fal, sim_aind, sim_bind):
-    x_sim = x_sim.to(DEVICE)
-    x_purple = x_sim[:, sim_bind].to(DEVICE)
-    x_orange = x_sim[:, sim_aind].to(DEVICE)
-    
-    hidden_purple, _ = model_purple(x_purple)
-    hidden_orange, _ = model_orange(x_orange)
-    
-    dif = hidden_purple - hidden_orange
-    f_norm = torch.norm(dif, p='fro') / len(x_sim)
-    return f_norm * lambda_fal
-
 
 def train_orange(model, optimizer, atrain_dataloader, epoch):
+    # train domain A: supervised BCE loss on domain A
     labels = []
     preds  = []
     probs = []
@@ -245,6 +235,8 @@ def train_orange(model, optimizer, atrain_dataloader, epoch):
         
         loss.backward()
         optimizer.step()
+
+        # evaluation
         
         model.eval()
         with torch.no_grad():
@@ -292,6 +284,7 @@ def noise(X, noise_level):
         raise ValueError('No data to augment')
 
 class FixMatch(nn.Module):
+    # FixMatch: Semi-supervised learning
     def __init__(self, threshold):
         super().__init__()
         self.threshold = threshold
@@ -309,8 +302,10 @@ class FixMatch(nn.Module):
         mask = max_p.ge(self.threshold).float()
         if mask.sum() > 0:
             hidden_us, outputs_us = model(inputs_us)
+            # pseudo-labeling loss
             ssl_loss = (F.binary_cross_entropy(outputs_us.squeeze(), p_hat.squeeze().float()) * mask).mean()
             dif = hidden_uw - hidden_us
+            # hidden representation consistency loss
             consistency_regularization_loss = torch.norm(dif, p='fro') / len(inputs_uw)
             ssl_preds.append(outputs_us.squeeze())
             ssl_labels.append(y_unlabeled.squeeze())
@@ -323,6 +318,8 @@ class FixMatch(nn.Module):
 
 
 def compute_ssl(model, optimizer, epoch, x_labeled, y_labeled, x_unlabeled, lambda_u, labeldp, score, ssl_obj, ssl_preds, ssl_labels, ssl_mask, y_unlabeled, start, threshold=0.95):
+    # compute all ssl losses
+    
     _, logits_labeled = model(x_labeled)
     cls_loss = F.binary_cross_entropy(logits_labeled.squeeze(), y_labeled.float()).mean()
     
@@ -334,10 +331,12 @@ def compute_ssl(model, optimizer, epoch, x_labeled, y_labeled, x_unlabeled, lamb
     consistency_regularization_loss = torch.tensor(0.0, device=DEVICE)
     
     if lambda_u != 0:
+        # data augmentation
         inputs_uw = noise(X=x_unlabeled, noise_level=0.05).to(DEVICE)
         inputs_us = noise(X=x_unlabeled, noise_level=0.2).to(DEVICE)
         optimizer.zero_grad()
         
+        # then compute pseudo-labeling loss and hidden representation consistency loss
         ssl_loss, consistency_regularization_loss = ssl_obj(inputs_uw=inputs_uw, inputs_us=inputs_us, model=model, ssl_preds=ssl_preds, ssl_labels=ssl_labels, ssl_mask=ssl_mask, y_unlabeled=y_unlabeled)
         # ssl_labels and y_unlabeled used for evaluation
 
@@ -350,6 +349,7 @@ def compute_ssl(model, optimizer, epoch, x_labeled, y_labeled, x_unlabeled, lamb
     return cls_loss.item() + lambda_u * ssl_loss.item(), consistency_regularization_loss.item(), lambda_u * ssl_loss.item()
 
 def train_purple(model, optimizer, shared_loader, unlabeled_loader, epoch, lambda_u, labeldp, score, ssl_obj, start):
+    # train domain B
 
     labels = []
     preds  = []
@@ -397,6 +397,7 @@ def train_purple(model, optimizer, shared_loader, unlabeled_loader, epoch, lambd
         cons_loss += consistency_regularization_loss
         ppssl_loss += ssl_loss
 
+        # evaluation
         model.eval()
         with torch.no_grad():
             _, outputs = model(anchor_batch)
@@ -457,6 +458,7 @@ def train_purple(model, optimizer, shared_loader, unlabeled_loader, epoch, lambd
 
 
 class SupConLoss(nn.Module):
+    # Supervised contrastive loss
     def __init__(self, temperature=0.07, base_temperature=0.07):
         super(SupConLoss, self).__init__()
         self.temperature = temperature
@@ -520,6 +522,7 @@ class SupConLoss(nn.Module):
 
 
 def train_supcons(model_purple, model_orange, optimizer_purple, optimizer_orange, criterion_contrastive, pairs_labeled_dataloader, btrain_dataloader, atrain_dataloader, lambda_sc, start, epoch):
+    # train supervised contrastive loss
     purple_unlabeled_iter = iter(btrain_dataloader)
     purple_iter = iter(pairs_labeled_dataloader)
     orange_iter = iter(atrain_dataloader)
@@ -648,7 +651,7 @@ def train_supcons(model_purple, model_orange, optimizer_purple, optimizer_orange
 
 
 def train(model_purple, model_orange, optimizer_purple, optimizer_orange, purple_scheduler, orange_scheduler, atrain_dataloader, btrain_dataloader, test_dataloader, aind, bind, pairs_labeled_dataloader, epochs, lambda_sc, lambda_u, labeldp, start):
-    
+    # overall training procedure
 
     ssl_obj = FixMatch(threshold=0.95).to(DEVICE)
 
@@ -661,12 +664,15 @@ def train(model_purple, model_orange, optimizer_purple, optimizer_orange, purple
         model_orange.train()
 
         # Track average losses per epoch
+        # train domain A
         avg_orange_loss = train_orange(model=model_orange, optimizer=optimizer_orange, atrain_dataloader=atrain_dataloader, epoch=epoch)
         avg_orange_loss = avg_orange_loss / len(atrain_dataloader)  # Average over batches
         
+        # train domain B
         avg_purple_loss = train_purple(model=model_purple, optimizer=optimizer_purple, shared_loader=pairs_labeled_dataloader, unlabeled_loader=btrain_dataloader, epoch=epoch, lambda_u=lambda_u, labeldp=labeldp, score=score, ssl_obj=ssl_obj, start=start)
         avg_purple_loss = avg_purple_loss / (len(pairs_labeled_dataloader) + len(btrain_dataloader))  # Average over batches
         
+        # train supervised contrastive loss
         total_loss = avg_orange_loss + avg_purple_loss
         avg_supcons_loss = 0
         if lambda_sc > 0:
