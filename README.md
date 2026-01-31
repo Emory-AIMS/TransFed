@@ -1,8 +1,8 @@
 # 🏥 TransFed: Semi-Supervised Federated Transfer Learning for Healthcare
 
-### Official repository for TransFed (submitted to ECML-PKDD 2025).
+### Official repository for TransFed (ECML-PKDD 2025).
 
-📄 Paper coming soon.
+📄 [Official paper](https://rdcu.be/evK43).
 
 Healthcare institutions often need to collaborate on developing predictive models while adhering to privacy regulations and handling heterogeneous data collection practices. Traditional federated learning approaches assume shared feature spaces or patient populations across institutions, limiting their applicability in real-world healthcare settings where different institutions collect distinct sets of patient data. We propose TransFed, a novel semi-supervised federated transfer learning framework that enables effective collaboration across healthcare institutions with heterogeneous feature spaces. Our framework combines cross-domain feature alignment with semi-supervised learning to leverage both labeled and unlabeled data, while maintaining privacy through federated learning principles. Using two large real-world clinical datasets, we demonstrate that TransFed effectively enables knowledge transfer  without requiring direct data sharing or common feature spaces to improve prediction performance across domains and generalizes well to unseen healthcare systems.
 
